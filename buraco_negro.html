@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Buraco Negro 3D</title>
+    <style>
+
+        body { margin: 0; overflow: hidden; background-color: #000000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <!-- Importando a biblioteca Three.js direto da internet -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        //Configuração da Cena, Câmera e Renderizador
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 12); // Posição inicial da câmera
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        // Permite girar a câmera com o mouse
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.5;
+
+        //O Centro do Buraco Negro (A esfera preta)
+        const coreGeometry = new THREE.SphereGeometry(1.5, 64, 64);
+        const coreMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const blackHoleCore = new THREE.Mesh(coreGeometry, coreMaterial);
+        scene.add(blackHoleCore);
+
+        //O Disco de Acreção (Partículas coloridas em volta)
+        const particlesCount = 15000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particlesCount * 3);
+        const colors = new Float32Array(particlesCount * 3);
+
+        const colorInside = new THREE.Color(0xffaa00); // Laranja/Amarelo perto do centro
+        const colorOutside = new THREE.Color(0x3366ff); // Azul na borda externa
+
+        for(let i = 0; i < particlesCount * 3; i+=3) {
+            // Distribuição circular das partículas
+            const radius = 1.8 + Math.random() * 8;
+            const angle = Math.random() * Math.PI * 2;
+            
+            positions[i] = Math.cos(angle) * radius;     // Eixo X
+            positions[i+1] = (Math.random() - 0.5) * 0.4; // Eixo Y (achatado como um disco)
+            positions[i+2] = Math.sin(angle) * radius;    // Eixo Z
+
+            // Mistura as cores dependendo da distância do centro
+            const mixedColor = colorInside.clone();
+            mixedColor.lerp(colorOutside, (radius - 1.8) / 8);
+            
+            colors[i] = mixedColor.r;
+            colors[i+1] = mixedColor.g;
+            colors[i+2] = mixedColor.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        // Material brilhante das partículas
+        const material = new THREE.PointsMaterial({
+            size: 0.04,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending, // Dá o efeito de brilho onde elas se juntam
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const accretionDisk = new THREE.Points(geometry, material);
+        scene.add(accretionDisk);
+
+        //Lógica de Animação (O loop que faz girar)
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+
+            // Faz o disco girar em torno do buraco negro
+            accretionDisk.rotation.y = elapsedTime * 0.1;
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Ajustar caso a janela mude de tamanho
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
